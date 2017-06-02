@@ -18,7 +18,8 @@ from authentication.serializers import UserInfoSerializer
 from django.db.models.functions import Lower
 from history.common import blacklist
 from urllib.parse import urlparse
-from history.common import shorten_url, send_bulk, is_blacklisted
+from history.common import shorten_url, send_bulk, is_blacklisted, calc_cat_score
+import json
 
 
 class SendPopupInfo(APIView):
@@ -26,11 +27,13 @@ class SendPopupInfo(APIView):
     Return all data for popup
     """
     def post(self, request, format=None):
+        cu = request.user
+
         url = request.data['url']
 
         base_url = urlparse(url).netloc
 
-        if is_blacklisted(request.user, base_url):
+        if is_blacklisted(cu, base_url):
             return Response({
                 'status': 'Blacklist',
                 'message': 'This page is blacklisted.'
@@ -38,17 +41,21 @@ class SendPopupInfo(APIView):
 
         short_url = shorten_url(url)
 
-        c = Category.objects.filter(owned_by=request.user)
+        c = cu.category_set.all()
 
         holder = {'categories': c, 'tracking': request.user.tracking_on}
 
         try:
-            p = Page.objects.get(url=short_url, owned_by=request.user)
+            p = Page.objects.get(url=short_url, owned_by=cu)
         except Page.DoesNotExist:
             holder['page'] = None
             send = PopupInfoSerializer(holder)
             return Response(send.data, status=status.HTTP_404_NOT_FOUND)
 
+        checked = p.categories.all()
+        ordered_score = calc_cat_score(c, p, checked)
+
+        holder['categories'] = ordered_score
         holder['page'] = p
 
         send = PopupInfoSerializer(holder)

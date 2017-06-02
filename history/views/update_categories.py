@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from history.common import shorten_url, send_bulk, is_blacklisted
 import requests
+import json
+from collections import Counter
 
 class CheckPageCategories(APIView):
     """
@@ -90,6 +92,19 @@ class AddCategoryPage(APIView):
             c.save()
             p.categories.add(c)
 
+
+        #updating keywords
+        if p.keywords != '{}':
+            cat = c.first()
+            page_keywords = Counter(json.loads(p.keywords))
+            cat_keywords = Counter(json.loads(cat.keywords))
+
+            new_cat_keywords = page_keywords + cat_keywords
+            cat.keywords = json.dumps(new_cat_keywords)
+            cat.num_pages = cat.num_pages + 1
+            cat.save()
+
+
         pv = p.pagevisit_set.last()
         if pv:
             setattr(p, 'last_visited', pv.visited)
@@ -121,6 +136,16 @@ class DeleteCategoryPage(APIView):
         c = Category.objects.get(title=cat, owned_by=request.user)
 
         p.categories.remove(c)
+
+        #update category keywords
+        if p.keywords != '{}':
+            page_keywords = Counter(json.loads(p.keywords))
+            cat_keywords = Counter(json.loads(c.keywords))
+
+            new_cat_keywords = cat_keywords - page_keywords
+            c.keywords = json.dumps(new_cat_keywords)
+            c.num_pages = c.num_pages - 1
+            c.save()
 
         pv = p.pagevisit_set.last()
         setattr(p, 'last_visited', pv.visited)

@@ -68,7 +68,7 @@ def create_page(user_pk, url, base_url, t_id, page_title, domain_title,
                 ta.save()
             close_domain.closed = timezone.now()
             close_domain.save()
-            
+
             update_timeactive_stats(close_domain)
 
         if ('https://goo.gl/' not in url and 'hindsite-local' not in url and
@@ -167,6 +167,16 @@ def create_page(user_pk, url, base_url, t_id, page_title, domain_title,
     requests.put(uri, data=data)
 
     update_stats(user, pv)
+
+    #TODO: gam- CHANGE THE NUMBER OF KEY WORDS
+    word_counts = get_count(content)
+    sort = sorted(word_counts.items(), key=operator.itemgetter(1))
+    sort.reverse()
+    sort = sort[0:30]
+    sort = {a[0]:a[1] for a in sort}
+
+    p.keywords = json.dumps(sort)
+    p.save()
 
     return True
 

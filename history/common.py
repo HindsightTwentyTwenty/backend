@@ -167,3 +167,35 @@ def update_timeactive_stats(d):
     day.save()
 
     return False
+
+def calc_cat_score(cats, page, checked):
+    import json
+    page_keywords = json.loads(page.keywords)
+    scored_cats = []
+    ranked_cats = {}
+    empty_cats = []
+
+    #TODO- check if empty
+    for cat in cats:
+        score = 0
+        cat_keywords = json.loads(cat.keywords)
+        if not cat_keywords:
+            empty_cats.append(cat)
+        else:
+            if cat not in checked:
+                for word in page_keywords.keys():
+                    if word in cat_keywords.keys():
+                        avg = cat_keywords[word] / cat.num_pages
+                        score += abs(avg - page_keywords[word])
+            ranked_cats[cat] = score
+
+    sorted_cats = sorted(ranked_cats.items(), key=operator.itemgetter(1))
+
+    for c in checked:
+        scored_cats.append(c)
+    for c in sorted_cats:
+        scored_cats.append(c[0])
+    for c in empty_cats:
+        scored_cats.append(c)
+
+    return scored_cats
